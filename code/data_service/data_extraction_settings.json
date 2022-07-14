@@ -1,0 +1,4 @@
+{
+    "subreddits": ["wildlifephotography", "naturepics", "naturephotography", "LandscapePhotography"],
+    "to_extract" : ["author", "created_utc", "full_link", "id", "subreddit", "title", "url"]
+}
