@@ -1,4 +1,8 @@
 {
     "subreddits": ["wildlifephotography", "naturepics", "naturephotography", "LandscapePhotography"],
-    "to_extract" : ["author", "created_utc", "full_link", "id", "subreddit", "title", "url"]
+    "to_extract" : ["author", "created_utc", "full_link", "id", "subreddit", "title", "url"],
+    "pushshift_url" : "https://api.pushshift.io/reddit/search/submission/",
+    "img_extensions" : ["png", "jpg", "jpeg"],
+    "reddit_client_id":"sC8LL6TPJxHUhMuMPlYcXw",
+    "reddit_client_secret":"ZU3zmhMiHU4mg9-MECnZuHsoId4raA"
 }
