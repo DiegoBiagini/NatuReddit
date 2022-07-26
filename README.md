@@ -10,7 +10,9 @@ Once that is done we can further classify it into subclasses (animal type, flora
 
 ### Technologies
 
-I plan to use the services provided by AWS.
+I plan to use the services provided by AWS.  
 MLops tools:
 - MLFlow
 - DVC
+- Some parts of TFX
+- BentoML
