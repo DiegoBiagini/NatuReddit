@@ -76,7 +76,10 @@ def scan_reddit_create_ds(subreddits : List[str], clean_params : List[str],
         # Take only the first image from a gallery (I don't trust galleries)
         if "reddit.com/gallery/" in img_url:
             submission = praw_connection.submission(url = img_url)
-            image_dict = submission.media_metadata
+            try:
+                image_dict = submission.media_metadata
+            except AttributeError:
+                continue
             if image_dict is None:
                 continue
             # Take the first image [0], the biggest resolution [s], the url [u]
@@ -95,15 +98,13 @@ def scan_reddit_create_ds(subreddits : List[str], clean_params : List[str],
             content = response.content
             if len(content) < 5 * 1024:
                 continue
-            """
-            with open(, 'wb') as out_file:
-                shutil.copyfileobj(response.content, out_file)
-            """
+
             image = Image.open(io.BytesIO(content))
             image.save(folder_path / img_name)
 
             del response
             subm["url"] = img_url
+            subm["img_name"] = img_name
             df = pd.concat([df, pd.DataFrame([subm])], ignore_index=True)
         except:
             logging.error(f"Could not download:{img_url}")
