@@ -55,7 +55,10 @@ def get_filtered_submissions(subreddits : List[str], date_start : datetime, date
 
 def scan_reddit_create_ds(subreddits : List[str], clean_params : List[str], 
                             timespan : Tuple[datetime.datetime, datetime.datetime], data_folder : Path, img_extensions : List[str],
-                            pushshift_url : str, praw_connection : praw.Reddit):
+                            pushshift_url : str, praw_connection : praw.Reddit) -> Tuple(Path, Path):
+    """
+    Returns a tuple containing the paths to: (output_csv, image_folder)
+    """
     date_start, date_end = timespan
 
     submissions = get_filtered_submissions(subreddits=subreddits, date_start=date_start, date_end=date_end, 
@@ -112,6 +115,8 @@ def scan_reddit_create_ds(subreddits : List[str], clean_params : List[str],
     df["created_utc"] = df["created_utc"].map(lambda x : datetime.datetime.fromtimestamp(x).isoformat())
     logging.info(f"Of these {len(df)} were valid")
 
-    df.to_csv(str(folder_path) + ".csv")
+    csv_path = str(folder_path) + ".csv"
+    df.to_csv(csv_path)
+    return (Path(csv_path), folder_path)
 
 
