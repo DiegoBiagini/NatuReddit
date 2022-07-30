@@ -25,8 +25,9 @@ RUN git config --global user.email "who" \
     && export GH_TOKEN=$(cat ./credentials/gh_token.txt) \
     && git clone https://$GH_TOKEN@github.com/DiegoBiagini/${REPO}.git
 
-# Setup python environment
 
+# Setup python environment
 RUN cd ${REPO}/ \
     && pip install -r requirements.txt \
-    && dvc pull
+    && cp airflow/credentials/config.local .dvc/config.local
+    && dvc pull \
