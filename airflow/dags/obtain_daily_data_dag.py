@@ -2,10 +2,11 @@ import json
 import pendulum
 from airflow.decorators import dag, task
 from airflow.operators.bash import BashOperator
-from ...code.data_service.pushshift_utils import scan_reddit_create_ds 
-from ...code.data_service.download_reddit_data import TimeUnits, get_timespan_upto
-from ...code.data_service.resize_images import resize_images
-from ...code.data_service.merge_datasets import merge_datasets
+
+from code.data_service.pushshift_utils import scan_reddit_create_ds 
+from code.data_service.download_reddit_data import TimeUnits, get_timespan_upto
+from code.data_service.merge_datasets import merge_datasets
+
 from pathlib import Path
 import logging
 import praw
@@ -30,6 +31,7 @@ def obtain_daily_data():
 
     Then perform the operations necessary to store them in the cloud (dvc add and push, update .env)
     """
+    cwd =  "NatuReddit/"
 
     @task(multiple_outpus=True)
     def praw_login_task(settings_path : str):
@@ -103,6 +105,14 @@ def obtain_daily_data():
 
 
     # Main DAG flow
+    dvc_pull_task = BashOperator(
+        task_id="dvc_pull",
+        bash_command='dvc pull',
+        cwd=cwd
+    )
+
+    dvc_pull_task >> praw_login_task
+
     settings = praw_login_task(settings_path=main_folder / settings_path)
 
     out_csv_path, out_folder_path = obtain_posts_task(settings, data_path)
@@ -118,19 +128,20 @@ def obtain_daily_data():
         git commit -a -m "Daily update"
         """,
         env = {'NEW_DS':str(out_csv_path.name), "NEW_DS_FOLDER":str(out_folder_path.name)},
-        append_env = True
+        append_env = True,
+        cwd=cwd
     )
 
     resize_images >> merge_datasets >> dvc_update_task
+    
+    # push_task = BashOperator(
+    #    task_id="push",
+    #    bash_command="""dvc push
+    #    git push
+    #    """)
 
-    push_task = BashOperator(
-        task_id="push",
-        bash_command="""dvc push
-        git push
-        """
-    )
+    # dvc_update_task >> push_task
 
-    dvc_update_task >> push_task
 
 
 obtain_data_dag = obtain_daily_data()

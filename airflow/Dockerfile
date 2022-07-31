@@ -16,7 +16,6 @@ RUN apt-get update \
     && apt-get install -y git
     # && ./userscripts/gh_install.sh \
 
-
 USER airflow
 
 # Clone repository
@@ -27,7 +26,8 @@ RUN git config --global user.email "who" \
 
 
 # Setup python environment
-RUN cd ${REPO}/ \
-    && pip install -r requirements.txt \
-    && cp airflow/credentials/config.local .dvc/config.local
-    && dvc pull \
+RUN cp credentials/config.local ${REPO}/.dvc/config.local \
+    && export PYTHONPATH="${PYTHONPATH}:/opt/airflow/NatuReddit" \
+    && cd ${REPO}/ \
+    && pip install -r requirements.txt
+

@@ -55,7 +55,7 @@ def get_filtered_submissions(subreddits : List[str], date_start : datetime, date
 
 def scan_reddit_create_ds(subreddits : List[str], clean_params : List[str], 
                             timespan : Tuple[datetime.datetime, datetime.datetime], data_folder : Path, img_extensions : List[str],
-                            pushshift_url : str, praw_connection : praw.Reddit) -> Tuple(Path, Path):
+                            pushshift_url : str, praw_connection : praw.Reddit) -> Tuple[Path, Path]:
     """
     Returns a tuple containing the paths to: (output_csv, image_folder)
     """
