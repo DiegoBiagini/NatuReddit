@@ -3,9 +3,9 @@ import pendulum
 from airflow.decorators import dag, task
 from airflow.operators.bash import BashOperator
 
-from code.data_service.pushshift_utils import scan_reddit_create_ds 
-from code.data_service.download_reddit_data import TimeUnits, get_timespan_upto
-from code.data_service.merge_datasets import merge_datasets
+from NatuReddit.code.data_service.pushshift_utils import scan_reddit_create_ds 
+from NatuReddit.code.data_service.download_reddit_data import TimeUnits, get_timespan_upto
+from NatuReddit.code.data_service.merge_datasets import merge_datasets
 
 from pathlib import Path
 import logging

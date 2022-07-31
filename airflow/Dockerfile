@@ -27,7 +27,7 @@ RUN git config --global user.email "who" \
 
 # Setup python environment
 RUN cp credentials/config.local ${REPO}/.dvc/config.local \
-    && export PYTHONPATH="${PYTHONPATH}:/opt/airflow/NatuReddit" \
+    && export PYTHONPATH="\${PYTHONPATH}/opt/airflow/${REPO}:" \
     && cd ${REPO}/ \
     && pip install -r requirements.txt
 
