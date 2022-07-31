@@ -6,7 +6,7 @@ from pathlib import Path
 import json
 import logging
 from typing import Tuple
-from pushshift_utils import scan_reddit_create_ds
+from .pushshift_utils import scan_reddit_create_ds
 import praw
 
 # Enum to set a timespan
