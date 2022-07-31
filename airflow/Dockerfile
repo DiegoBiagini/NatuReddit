@@ -18,6 +18,9 @@ RUN apt-get update \
 
 USER airflow
 
+ENV LATEST_DS="2022-04-27_2022-07-27.csv"
+ENV PYTHONPATH="\${PYTHONPATH}/opt/airflow/${REPO}:" \
+
 # Clone repository
 RUN git config --global user.email "who" \
     && git config --global user.name "cares" \
@@ -27,7 +30,6 @@ RUN git config --global user.email "who" \
 
 # Setup python environment
 RUN cp credentials/config.local ${REPO}/.dvc/config.local \
-    && export PYTHONPATH="\${PYTHONPATH}/opt/airflow/${REPO}:" \
     && cd ${REPO}/ \
     && pip install -r requirements.txt
 
