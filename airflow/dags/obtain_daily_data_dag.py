@@ -107,7 +107,7 @@ def obtain_daily_data():
         """
         #### Resize downloaded images s.t. their long side is at most 1980 px
         """
-        max_size = 1920
+        max_size = 1980
         resize_images(Path(folder_path), max_size)
         return 1
 
@@ -126,33 +126,46 @@ def obtain_daily_data():
         new_csv_name = new_csv_path[new_csv_path.rfind("/")+1:]
         new_folder_name = new_folder_path[new_folder_path.rfind("/")+1:]
 
-        result = subprocess.run(f"dvc add {'data/' + new_csv_name}", stdout=subprocess.PIPE, cwd=cwd, shell=True, universal_newlines=True)
+        cmd = f"dvc add {'data/' + new_csv_name}"
+        logger.info(cmd)
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, cwd=cwd, shell=True, universal_newlines=True)
         logger.info(result.stdout)
 
-        result = subprocess.run(f"dvc add {str(data_path) + '/' +new_folder_name}", stdout=subprocess.PIPE, cwd=cwd, shell=True, universal_newlines=True)
+        cmd = f"dvc add {str(data_path) + '/' +new_folder_name}"
+        logger.info(cmd)
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, cwd=cwd, shell=True, universal_newlines=True)
         logger.info(result.stdout)
 
-        result = subprocess.run(f'sed -i \'s/LATEST_DS=.*\.csv/LATEST_DS={new_csv_name}/\' airflow/configs/dataset.cfg', stdout=subprocess.PIPE, cwd=cwd, shell=True, universal_newlines=True)
+        config["DEFAULT"]["LATEST_DS"] = new_csv_name
+        with open(main_folder / 'airflow/configs/dataset.cfg', 'w') as configfile:
+            config.write(configfile)
+        logger.info("Updated dataset.cfg")
+
+        cmd = f'git add airflow/configs/dataset.cfg'
+        logger.info(cmd)
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, cwd=cwd, shell=True, universal_newlines=True)
         logger.info(result.stdout)
 
-        result = subprocess.run(f'git add airflow/Dockerfile', stdout=subprocess.PIPE, cwd=cwd, shell=True, universal_newlines=True)
+        cmd = f'git commit -a -v -m "Daily update"'
+        logger.info(cmd)
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, cwd=cwd, shell=True, universal_newlines=True)
         logger.info(result.stdout)
 
-        result = subprocess.run(f'git commit -a -v -m "Daily update"', stdout=subprocess.PIPE, cwd=cwd, shell=True, universal_newlines=True)
-        logger.info(result.stdout)
-
-        #logger.info(stream.read())
         return 1
     
     @task()
     def push_task(prev=None):
-        
-        # stream = os.popen(f"""
-        # dvc push
-        #git push
-        # """)
-        stream = os.popen("ls")
-        logger.info(stream.read())
+
+        cmd = f'dvc push -v'
+        logger.info(cmd)
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, cwd=cwd, shell=True, universal_newlines=True)
+        logger.info(result.stdout)
+
+        cmd = "git push"
+        logger.info(cmd)
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, cwd=cwd, shell=True, universal_newlines=True)
+        logger.info(result.stdout)
+
         logger.info("Pushed everything to dvc and github")
         return 1
 

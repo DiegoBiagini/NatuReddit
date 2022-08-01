@@ -13,7 +13,9 @@ COPY credentials/ credentials/
 COPY userscripts/ userscripts/
 
 RUN apt-get update \
-    && apt-get install -y git
+    && apt-get install -y git \
+    && git config --global user.email "who" \
+    && git config --global user.name "cares"
     # && ./userscripts/gh_install.sh \
 
 USER airflow
