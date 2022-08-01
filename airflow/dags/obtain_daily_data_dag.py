@@ -1,7 +1,6 @@
 import json
 import pendulum
 from airflow.decorators import dag, task
-from airflow.operators.bash import BashOperator
 
 from NatuReddit.code.data_service.pushshift_utils import scan_reddit_create_ds 
 from NatuReddit.code.data_service.download_reddit_data import TimeUnits, get_timespan_upto
@@ -24,7 +23,7 @@ logger = logging.getLogger("airflow.task")
 )
 def obtain_daily_data():
     """
-    ### DAG which performs the operations necessary to expand the current unlabeled dataset.  \n
+    ### DAG which performs the operations necessary to expand the current unlabeled dataset. 
     Such operations should be performed each day.  
     Those are:  
     - Login to PRAW  
@@ -34,19 +33,29 @@ def obtain_daily_data():
 
     Then perform the operations necessary to store them in the cloud (dvc add and push, update .env)
     """
+    # PATHS
     cwd =  Path("/opt/airflow/NatuReddit")
+
+    main_folder = Path(__file__).parent.parent / 'NatuReddit'
+    data_path =  main_folder / "data"
+    settings_path = main_folder / "code/data_service/data_extraction_settings.json"
+
+    # Obtain the currently latest dataset from the environment
+    old_dataset_csv = data_path / os.getenv("LATEST_DS")
 
     @task()
     def dvc_pull_task(cwd : Path):
         os.chdir(cwd)
-        stream = os.popen('dvc pull -v')
-        print(stream.read())
+        stream = os.popen("""dvc pull -v
+        ls data
+        """)
+        logger.info(stream.read())
         return 1
 
     @task(multiple_outputs=True)
     def read_login_settings_task(settings_path : str, prev=None):
         """
-        #### Login with PRAW using the settings in the appropriate folder
+        #### Login with PRAW using the settings in the appropriate folder  
         Also returns the other settings read from the appropriate file
         """
         try:
@@ -110,20 +119,24 @@ def obtain_daily_data():
         stream = os.popen(f"""
         dvc add {out_csv_path}
         dvc add {out_folder_path}
-        sed -i 's/LATEST_DS=.*\.csv/LATEST_DS={out_csv_path}/ airflow/Dockerfile
+        sed -i 's/LATEST_DS=".*\.csv"/LATEST_DS="{out_csv_path}"/ airflow/Dockerfile
         export LATEST_DS='{out_csv_path}'
         git commit -a -m "Daily update"
         """)
         logger.info(stream.read())
         return 1
-
-
-    main_folder = Path(__file__).parent.parent / 'NatuReddit'
-    data_path =  main_folder / "data"
-    settings_path = main_folder / "code/data_service/data_extraction_settings.json"
-
-    # Obtain the currently latest dataset from the environment
-    old_dataset_csv = data_path / os.getenv("LATEST_DS")
+    
+    @task()
+    def push_task(prev=None):
+        
+        # stream = os.popen(f"""
+        # dvc push
+        #git push
+        # """)
+        stream = os.popen("ls")
+        logger.info(stream.read())
+        logger.info("Pushed everything to dvc and github")
+        return 1
 
     # Main DAG flow
     dvc_pull_out = dvc_pull_task(cwd=cwd)
@@ -134,8 +147,6 @@ def obtain_daily_data():
     
     out_folder_path = posts_out['out_folder']
     out_csv_path = posts_out['out_csv']
-    logger.info(out_folder_path)
-    logger.info(out_csv_path)
 
     resize_out = resize_images_task(out_folder_path)
 
@@ -143,15 +154,7 @@ def obtain_daily_data():
 
     dvc_update_out = dvc_update_task(out_csv_path=out_csv_path, out_folder_path=out_folder_path, prev=merge_out)
 
-    #dvc_update_task()
-    
-    # push_task = BashOperator(
-    #    task_id="push",
-    #    bash_command="""dvc push
-    #    git push
-    #    """)
-
-    # dvc_update_task >> push_task
+    push_out = push_task(dvc_update_out)
 
 
 
