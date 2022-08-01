@@ -13,6 +13,8 @@ import logging
 import praw
 import os
 
+logger = logging.getLogger("airflow.task")
+
 @dag(
     dag_id="daily_update",
     schedule_interval=None,
@@ -22,20 +24,27 @@ import os
 )
 def obtain_daily_data():
     """
-    ### DAG which performs the operations necessary to expand the current unlabeled dataset
-    Such operations should be performed each day
-    Those are:
-    -Login to PRAW
-    -Obtain the posts from the last day
-    -Downsize the images as needed
-    -Merge them with the existing dataset
+    ### DAG which performs the operations necessary to expand the current unlabeled dataset.  \n
+    Such operations should be performed each day.  
+    Those are:  
+    - Login to PRAW  
+    - Obtain the posts from the last day  
+    - Downsize the images as needed  
+    - Merge them with the existing dataset  
 
     Then perform the operations necessary to store them in the cloud (dvc add and push, update .env)
     """
-    cwd =  "NatuReddit/"
+    cwd =  Path("/opt/airflow/NatuReddit")
 
-    @task(multiple_outpus=True)
-    def praw_login_task(settings_path : str):
+    @task()
+    def dvc_pull_task(cwd : Path):
+        os.chdir(cwd)
+        stream = os.popen('dvc pull -v')
+        print(stream.read())
+        return 1
+
+    @task(multiple_outputs=True)
+    def read_login_settings_task(settings_path : str, prev=None):
         """
         #### Login with PRAW using the settings in the appropriate folder
         Also returns the other settings read from the appropriate file
@@ -53,88 +62,88 @@ def obtain_daily_data():
                     reddit_client_id = settings["reddit_client_id"]
                     reddit_client_secret = settings["reddit_client_secret"]
                 except KeyError:
-                    logging.error("Settings file is malformed")
+                    logger.error("Settings file is malformed")
                     raise KeyError
         except FileNotFoundError:
-            logging.error("Settings file not found")
+            logger.error(f"Settings file not found in {settings_path}")
             raise KeyError
     
-        # Instantiate praw (needed for galleries)
-        praw_connection = praw.Reddit(client_id=reddit_client_id,
-                            client_secret=reddit_client_secret, 
-                            user_agent="android:com.example.myredditapp:v1.2.3 (by u/kemitche)")
-        conn = {'praw_connection' : praw_connection}
-        return {**conn, **settings}
+        return settings
             
 
     @task(multiple_outputs=True)
-    def obtain_posts_task(settings : dict, save_location : Path):
+    def obtain_posts_task(settings : dict, save_location : Path, prev=None):
         """
         #### Obtain posts from the last day
         """
-        last_day = get_timespan_upto(1, TimeUnits.DAY)
-        out_paths = scan_reddit_create_ds(settings['subreddits'], settings['to_extract'], last_day, save_location, 
-                                settings['img_extensions'], settings['pushshift_url'], settings['praw_connection'])
+        # Instantiate praw (needed for galleries)
+        praw_connection = praw.Reddit(client_id=settings['reddit_client_id'],
+                            client_secret=settings['reddit_client_secret'], 
+                            user_agent="android:com.example.myredditapp:v1.2.3 (by u/kemitche)")
 
-        return out_paths
+        last_day = get_timespan_upto(1, TimeUnits.DAY)
+        out_csv_path, out_folder_path = scan_reddit_create_ds(settings['subreddits'], settings['to_extract'], last_day, save_location, 
+                                settings['img_extensions'], settings['pushshift_url'], praw_connection)
+
+        return {'out_csv':str(out_csv_path), 'out_folder':str(out_folder_path)}
 
     @task()
-    def resize_images_task(folder_path : Path):
+    def resize_images_task(folder_path : str, prev=None):
         """
         #### Resize downloaded images s.t. their long side is at most 1980 px
         """
         max_size = 1920
-        resize_images(folder_path, max_size)
+        resize_images(Path(folder_path), max_size)
+        return 1
 
     @task()
-    def merge_datasets_task(ds1 : Path, ds2 : Path, destination : Path):
+    def merge_datasets_task(ds1 : str, ds2 : str, destination : Path, prev=None):
         """
         #### Merge the new daily update with the old dataset
         """
 
-        merge_datasets(ds1, ds2, destination, remove_old=True)
+        merge_datasets(Path(ds1), Path(ds2), destination, remove_old=False)
+        return 1
+
+    @task()
+    def dvc_update_task(out_csv_path : str, out_folder_path : str, prev=None):
+        stream = os.popen(f"""
+        dvc add {out_csv_path}
+        dvc add {out_folder_path}
+        sed -i 's/LATEST_DS=.*\.csv/LATEST_DS={out_csv_path}/ airflow/Dockerfile
+        export LATEST_DS='{out_csv_path}'
+        git commit -a -m "Daily update"
+        """)
+        logger.info(stream.read())
+        return 1
 
 
-
-
+    main_folder = Path(__file__).parent.parent / 'NatuReddit'
     data_path =  main_folder / "data"
-    main_folder = Path(__file__).parent.parent
-    settings_path = "code/data_service/data_extraction_settings.json"
+    settings_path = main_folder / "code/data_service/data_extraction_settings.json"
 
     # Obtain the currently latest dataset from the environment
     old_dataset_csv = data_path / os.getenv("LATEST_DS")
 
-
     # Main DAG flow
-    dvc_pull_task = BashOperator(
-        task_id="dvc_pull",
-        bash_command='dvc pull',
-        cwd=cwd
-    )
+    dvc_pull_out = dvc_pull_task(cwd=cwd)
 
-    dvc_pull_task >> praw_login_task
+    settings = read_login_settings_task(settings_path=settings_path, prev=dvc_pull_out)
 
-    settings = praw_login_task(settings_path=main_folder / settings_path)
+    posts_out = obtain_posts_task(settings, data_path, prev=None)
+    
+    out_folder_path = posts_out['out_folder']
+    out_csv_path = posts_out['out_csv']
+    logger.info(out_folder_path)
+    logger.info(out_csv_path)
 
-    out_csv_path, out_folder_path = obtain_posts_task(settings, data_path)
-    resize_images_task(out_folder_path)
+    resize_out = resize_images_task(out_folder_path)
 
-    merge_datasets_task(old_dataset_csv, out_csv_path, data_path)
+    merge_out = merge_datasets_task(old_dataset_csv, out_csv_path, data_path, prev=resize_out)
 
-    dvc_update_task = BashOperator(
-        task_id="dvc_update",
-        bash_command="""dvc add $NEW_DS
-        dvc add $NEW_DS_FOLDER
-        sed -i 's/LATEST_DS=.*\.csv/LATEST_DS=$NEW_DS/ airflow/Dockerfile
-        export LATEST_DS='$NEW_DS'
-        git commit -a -m "Daily update"
-        """,
-        env = {'NEW_DS':str(out_csv_path.name), "NEW_DS_FOLDER":str(out_folder_path.name)},
-        append_env = True,
-        cwd=cwd
-    )
+    dvc_update_out = dvc_update_task(out_csv_path=out_csv_path, out_folder_path=out_folder_path, prev=merge_out)
 
-    resize_images_task >> merge_datasets >> dvc_update_task
+    #dvc_update_task()
     
     # push_task = BashOperator(
     #    task_id="push",
