@@ -1,4 +1,6 @@
 import json
+
+from pandas import merge
 import pendulum
 from airflow.decorators import dag, task
 
@@ -11,6 +13,7 @@ from pathlib import Path
 import logging
 import praw
 import os
+import subprocess
 
 logger = logging.getLogger("airflow.task")
 
@@ -111,19 +114,33 @@ def obtain_daily_data():
         #### Merge the new daily update with the old dataset
         """
 
-        merge_datasets(Path(ds1), Path(ds2), destination, remove_old=False)
-        return 1
+        merged_csv, merged_folder = merge_datasets(Path(ds1), Path(ds2), destination, remove_old=False)
+        return {"merged_csv":str(merged_csv), "merged_folder":str(merged_folder)}
 
     @task()
-    def dvc_update_task(out_csv_path : str, out_folder_path : str, prev=None):
+    def dvc_update_task(new_csv_path : str, new_folder_path : str, prev=None):
+        logger.info(new_csv_path)
+        logger.info(new_folder_path)
+        new_csv_name = new_csv_path[new_csv_path.rfind("/")+1:]
+        new_folder_name = new_folder_path[new_folder_path.rfind("/")+1:]
+        logger.info(new_csv_name)
+        logger.info(new_folder_name)
+
+        result = subprocess.run(f"dvc add {new_csv_path}", stdout=subprocess.PIPE)
+        logger.info(result.stdout)
+
         stream = os.popen(f"""
-        dvc add {out_csv_path}
-        dvc add {out_folder_path}
-        sed -i 's/LATEST_DS=".*\.csv"/LATEST_DS="{out_csv_path}"/ airflow/Dockerfile
-        export LATEST_DS='{out_csv_path}'
+        echo on
+        dvc add {new_csv_path}
+        dvc add {new_folder_path}
+        sed -i 's/LATEST_DS=".*\.csv"/LATEST_DS="{new_csv_name}"/ airflow/Dockerfile
         git commit -a -m "Daily update"
         """)
-        logger.info(stream.read())
+
+        print(stream.read())
+        os.environ["LATEST_DS"] = new_csv_name
+
+        #logger.info(stream.read())
         return 1
     
     @task()
@@ -152,7 +169,7 @@ def obtain_daily_data():
 
     merge_out = merge_datasets_task(old_dataset_csv, out_csv_path, data_path, prev=resize_out)
 
-    dvc_update_out = dvc_update_task(out_csv_path=out_csv_path, out_folder_path=out_folder_path, prev=merge_out)
+    dvc_update_out = dvc_update_task(new_csv_path=merge_out["merge_csv"], new_folder_path=merge_out["merge_folder"])
 
     push_out = push_task(dvc_update_out)
 

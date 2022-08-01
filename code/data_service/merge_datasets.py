@@ -2,12 +2,13 @@ from genericpath import exists
 import logging
 from argparse import ArgumentError, ArgumentParser
 from pathlib import Path
+from typing import Tuple
 import pandas as pd
 import datetime
 import shutil
 from functools import partial
 
-def merge_datasets(ds1 : Path, ds2 : Path, dst : Path, remove_old : bool):
+def merge_datasets(ds1 : Path, ds2 : Path, dst : Path, remove_old : bool) -> Tuple[Path, Path]:
     df1 = pd.read_csv(ds1, index_col=0)
     df2 = pd.read_csv(ds2, index_col=0)
 
@@ -58,6 +59,7 @@ def merge_datasets(ds1 : Path, ds2 : Path, dst : Path, remove_old : bool):
 
         ds1.unlink()
         ds2.unlink()
+    return (dst / (new_name + ".csv"), new_folder)
 
 
 
