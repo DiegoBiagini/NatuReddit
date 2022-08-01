@@ -46,8 +46,8 @@ def obtain_daily_data():
 
     # Obtain the currently latest dataset from the config
     config = configparser.ConfigParser()
-    config.read("airflow/configs/dataset.cfg")
-    old_dataset_csv = data_path / config["LATEST_DS"]
+    config.read(main_folder / "airflow/configs/dataset.cfg")
+    old_dataset_csv = data_path / config["DEFAULT"]["LATEST_DS"]
 
     @task()
     def dvc_pull_task(cwd : Path):
