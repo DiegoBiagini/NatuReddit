@@ -2,3 +2,10 @@ requests
 praw
 dvc
 pillow
+label-studio
+tfx
+pytorch
+torchvision
+transformers
+torchmetrics
+mlflow
