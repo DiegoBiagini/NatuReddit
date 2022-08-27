@@ -9,3 +9,6 @@ torchvision
 transformers
 torchmetrics
 mlflow
+torchserve
+torch-model-archiver 
+torch-workflow-archiver

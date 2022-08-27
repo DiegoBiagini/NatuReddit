@@ -56,7 +56,7 @@ def run_fn(fn_args : FnArgs):
         target_folder.mkdir()
     # Serialize model, model settings and label mapping
     with open(target_folder / "model_cfg.yaml", "w") as f:
-        yaml.dump(fn_args.custom_config["model_cfg"]["model"], f)
+        yaml.dump(fn_args.custom_config["model_cfg"], f)
     with open(target_folder / "label_mapping.yaml", "w") as f:
         yaml.dump(train_ds.label_to_cat_dict, f)
     torch.save(model.state_dict(), target_folder / "model_weight.pt")

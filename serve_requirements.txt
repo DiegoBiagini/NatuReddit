@@ -1,0 +1,8 @@
+pandas
+numpy
+torch
+torchvision
+torchmetrics
+transformers
+torchserve
+mlflow

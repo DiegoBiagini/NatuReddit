@@ -8,7 +8,7 @@ import torch
 import logging
 import numpy as np
 import mlflow
-from data_utils import collate_fn
+from torch.nn.utils.rnn import pad_sequence
 import json
 
 class FullModel(nn.Module):
@@ -141,8 +141,8 @@ class FullModel(nn.Module):
             mlflow.log_metric("train_loss", train_epoch_loss, step=epoch)
             mlflow.log_metric("train_accuracy", train_epoch_acc, step=epoch)
 
-            mlflow.log_metric("validation_loss",out_metrics["accuracy"], step=epoch)
-            mlflow.log_metric("validation_accuracy", out_metrics["loss"], step=epoch)
+            mlflow.log_metric("validation_loss",out_metrics["loss"], step=epoch)
+            mlflow.log_metric("validation_accuracy", out_metrics["accuracy"], step=epoch)
     
     def train_one_epoch(self, training_loader, optimizer, loss_fn, accuracy_fn):
         self.train()
@@ -210,3 +210,8 @@ class FullModel(nn.Module):
             for m in metrics:
                 mlflow.log_metric("eval_"+m, metrics[m])
         return metrics
+
+def collate_fn(data):
+    titles, imgs, labels = zip(*data)
+    padded_titles = pad_sequence(titles, batch_first=True)
+    return padded_titles, torch.stack(imgs), torch.stack(labels)

@@ -6,7 +6,6 @@ from pathlib import Path
 import torchvision
 from PIL import Image
 import torch
-from torch.nn.utils.rnn import pad_sequence
 
 class NatuRedditDS(Dataset):
 
@@ -64,7 +63,3 @@ class NatuRedditDS(Dataset):
         return title, img, torch.as_tensor(self.label_to_cat_dict [label])
 
 
-def collate_fn(data):
-    titles, imgs, labels = zip(*data)
-    padded_titles = pad_sequence(titles, batch_first=True)
-    return padded_titles, torch.stack(imgs), torch.stack(labels)
